@@ -10,9 +10,9 @@ const port = process.env.PORT || 5000;
 // middleware
 app.use(cors({
     origin: [
-        // 'http://localhost:5173',
-        'https://cars-doctor-6c129.web.app',
-        'https://cars-doctor-6c129.firebaseapp.com'
+        'http://localhost:5173',
+        // 'https://cars-doctor-6c129.web.app',
+        // 'https://cars-doctor-6c129.firebaseapp.com'
     ],
     credentials: true
 }));
@@ -34,21 +34,21 @@ const client = new MongoClient(uri, {
 });
 
 // middlewares 
-const logger = (req, res, next) =>{
+const logger = (req, res, next) => {
     console.log('log: info', req.method, req.url);
     next();
 }
 
-const verifyToken = (req, res, next) =>{
+const verifyToken = (req, res, next) => {
     const token = req?.cookies?.token;
     // console.log('token in the middleware', token);
     // no token available 
-    if(!token){
-        return res.status(401).send({message: 'unauthorized access'})
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized access' })
     }
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) =>{
-        if(err){
-            return res.status(401).send({message: 'unauthorized access'})
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'unauthorized access' })
         }
         req.user = decoded;
         next();
@@ -85,7 +85,21 @@ async function run() {
 
         // services related api
         app.get('/services', async (req, res) => {
-            const cursor = serviceCollection.find();
+            const filter = req.query;
+            console.log(filter);
+            const query = {
+                // price: { $lt: 150, $gt: 50 }
+                // db.InspirationalWomen.find({first_name: { $regex: /Harriet/i} })
+                title: {$regex: filter.search, $options: 'i'}
+            };
+
+            const options = {
+                sort: {
+                    price: filter.sort === 'asc' ? 1 : -1
+                }
+            };
+
+            const cursor = serviceCollection.find(query, options);
             const result = await cursor.toArray();
             res.send(result);
         })
@@ -108,8 +122,8 @@ async function run() {
         app.get('/bookings', logger, verifyToken, async (req, res) => {
             console.log(req.query.email);
             console.log('token owner info', req.user)
-            if(req.user.email !== req.query.email){
-                return res.status(403).send({message: 'forbidden access'})
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: 'forbidden access' })
             }
             let query = {};
             if (req.query?.email) {
